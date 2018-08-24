@@ -1,0 +1,139 @@
+# R code to generate ridge plot graphic for flow data for historic and future projected flows.
+# Output first generated for collaborative art and science project to communicate flows.
+# Code modified from Cory Copeland (2018).
+
+# Load libraries
+library(jsonlite)
+library(grDevices)
+library(plotly)
+library(magrittr)
+library(ggplot2)
+library(ggridges)
+library(tidyr)
+library(reshape2)
+# Is ggjoy still required, or replaced by ggridges?
+library(ggjoy)
+
+# Set working directory
+setwd("P:/Documents/R Directory")
+
+# Loading in Historic flow for 8 rivers
+Hist1 <- read.csv("data/HistoricFlow/AmericanHist.csv")
+Hist2 <- read.csv("data/HistoricFlow/FeatherRiver.csv")
+Hist3 <- read.csv("data/HistoricFlow/MercedHist.csv")
+Hist4 <- read.csv("data/HistoricFlow/SacBBHist.csv")
+Hist5 <- read.csv("data/HistoricFlow/SJRHist.csv")
+Hist6 <- read.csv("data/HistoricFlow/StanislausHist.csv")
+Hist7 <- read.csv("data/HistoricFlow/TuolumneHist.csv")
+Hist8 <- read.csv("data/HistoricFlow/yubaHist.csv")
+historicflows <- c(Hist2[,2:13],Hist3[,2:13],Hist4[,2:13],Hist5[,2:13],Hist6[,2:13],Hist7[,2:13], Hist8[,2:13])
+
+# Adding all histograms together to make Eight-River Index in a single data frame.
+EightRivHist <- Hist1[,2:13]+Hist2[,2:13]+Hist3[,2:13]+Hist4[,2:13]+Hist5[,2:13]+Hist6[,2:13]+Hist7[,2:13]+ Hist8[,2:13]
+EightRivHist <- (EightRivHist* 0.0165643511)/1000
+EightRivHist$WaterYear <- Hist1$Water.Year
+
+# Calculate histogram. Used to calculate 'water year type'. 
+# Note: Water Year typology is relative; not equivalent to State of California definition.
+Hist.df <- data.frame(meanflow, maxflow, minflow, lowerQuart, upperQuart)
+
+# Load HadGEM2-ES climate model data.
+# Variable name should be changed to make clear what is Sacramento vs San Joaquin river basins.
+Sac1 <- fromJSON("data/RCP85/SacRiverBigBendHadGEM2ES.json")
+Sac2 <- fromJSON("data/RCP85/AmericanHadGEM2ES.json")
+Sac3 <- fromJSON("data/RCP85/FeatherHadGEM2ES.json")
+Sac4 <- fromJSON("data/RCP85/MercedHadGEM2ES.json")
+Sac5 <- fromJSON("data/RCP85/SJRHadGEM2ES.json")
+Sac6 <- fromJSON("data/RCP85/StanislausHadGEM2ES.json")
+Sac7 <- fromJSON("data/RCP85/TuolumneHadGEM2ES.json")
+Sac8 <- fromJSON("data/RCP85/YubaHadGEM2ES.json")
+
+
+# Make ridge plot for HadEM2 data
+Sac1$measurement_set$EightRiver <- Sac1$measurement_set$value + Sac2$measurement_set$value +Sac3$measurement_set$value +Sac4$measurement_set$value +
+  Sac5$measurement_set$value + Sac6$measurement_set$value +Sac7$measurement_set$value +Sac8$measurement_set$value
+
+dates <- as.POSIXct(Sac1$measurement_set$event)
+months <- format(dates,"%m")
+months <- as.integer(months)
+months2 <- months
+wateryear <- c(4,5,6,7,8,9,10,11,12,1,2,3)
+for (i in 1:12){
+  months[months2==i] <- wateryear[i]
+}
+
+for (i in 1:12){
+  months[months==i]<- names(EightRivHist)[i]
+}
+
+Year <- format(dates,"%y")
+Year <- as.integer(Year)
+Year2 <- Year
+
+for (i in 1:1800) {
+  if (months2[i]>9){
+    Year[i] <- Year2[i]+1}
+    
+  }
+
+Sac1$measurement_set$WaterYear <- Year
+Sac1$measurement_set$Month <- months 
+sac1.df <- as.data.frame(Sac1$measurement_set)
+
+ClimateModelData <- sac1.df[790:1797,]
+
+climate.df <- reshape(ClimateModelData[,3:5], timevar = "Month", idvar = "WaterYear", direction = "wide")
+climate.df$WaterYear <- climate.df$WaterYear+2000
+names(climate.df)[2:13] <- names(EightRivHist)[1:12]
+names(climate.df)[1] <- names(EightRivHist)[13]
+
+
+climate.df.merge <- climate.df
+climate.df.merge[1:12] <- climate.df[2:13]
+climate.df.merge[13] <- climate.df[1]
+names(climate.df.merge) <- names(EightRivHist)
+climate.df.merge[1:12] <- climate.df.merge[1:12]/1000
+
+AllData <- rbind(EightRivHist, climate.df.merge)
+alldata.melt <- melt(AllData, id="WaterYear")
+TotalWater <-c()
+
+for (i in 1:181) {
+  TotalWater[i] <- sum(AllData[i, 1:12]) 
+}
+
+MaxWater <-c()
+for (i in 1:181) {
+MaxWater[i] <- max(AllData[i, 1:12]) 
+}
+
+# Set color pallette from blue (wetter) to red (drier)
+colRange <- colorRampPalette(c("red", "blue"), alpha=0.5)
+colz <- c()
+for(i in 1:181) {
+  colz[i] <- colRange(181)[rank(TotalWater)[i]]
+  
+}
+
+colzz <- c()
+for(i in 1:181) {
+  colzz[i] <- colRange(181)[rank(MaxWater)[i]]
+  
+}
+
+colRange(length(TotalWater)) 
+colzTotal <- rep(colz, each=12)
+colzMax <- rep(colzz, each=12)
+
+# Set start and end year for historic period (1919-2014)
+StartYear <- 1919
+EndYear <- 2014
+colRang <- c((StartYear-1918)*12+1,2172-((2099-EndYear)*12))
+scalamooch <- max(alldata.melt$value[alldata.melt$WaterYear>StartYear & alldata.melt$WaterYear<=EndYear])/max(alldata.melt$value)*6
+
+# Set ggplot parameters. Height by monthly flow (value), color by water year
+ggplot(alldata.melt[alldata.melt$WaterYear>StartYear & alldata.melt$WaterYear<=EndYear,], aes(variable, WaterYear, height = value, group=WaterYear, fill= WaterYear)) +
+  geom_density_ridges(stat="identity", scale = scalamooch) +  scale_fill_gradientn(colors=colzMax[colRang[1]:colRang[2]]) + theme_ridges(grid = FALSE, line_size = 0) + scale_y_discrete(limits=c(0, 293))
+
+# Output SVG graphic
+ggsave("ridgeplot.svg", height=49/4, width = 33/8)
