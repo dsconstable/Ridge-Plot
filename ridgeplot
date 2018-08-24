@@ -1,8 +1,7 @@
 # R code to generate ridge plot graphic for flow data for historic and future projected flows.
-# Output first generated for collaborative art and science project to communicate flows.
 # Code modified from Cory Copeland (2018).
 
-# Load libraries
+# Load required libraries libraries
 library(jsonlite)
 library(grDevices)
 library(plotly)
@@ -11,49 +10,75 @@ library(ggplot2)
 library(ggridges)
 library(tidyr)
 library(reshape2)
-# Is ggjoy still required, or replaced by ggridges?
-library(ggjoy)
 
 # Set working directory
-setwd("P:/Documents/R Directory")
+setwd("P:\DATA\historic_projected_flow")
 
-# Loading in Historic flow for 8 rivers
-Hist1 <- read.csv("data/HistoricFlow/AmericanHist.csv")
-Hist2 <- read.csv("data/HistoricFlow/FeatherRiver.csv")
-Hist3 <- read.csv("data/HistoricFlow/MercedHist.csv")
-Hist4 <- read.csv("data/HistoricFlow/SacBBHist.csv")
-Hist5 <- read.csv("data/HistoricFlow/SJRHist.csv")
-Hist6 <- read.csv("data/HistoricFlow/StanislausHist.csv")
-Hist7 <- read.csv("data/HistoricFlow/TuolumneHist.csv")
-Hist8 <- read.csv("data/HistoricFlow/yubaHist.csv")
-historicflows <- c(Hist2[,2:13],Hist3[,2:13],Hist4[,2:13],Hist5[,2:13],Hist6[,2:13],Hist7[,2:13], Hist8[,2:13])
+# Load historic flow for rivers in eight river index (http://cdec.water.ca.gov/reportapp/javareports?name=WSIHIST)
+# Historic period covers 1919–2015
+# Calculate histogram for each individual river. This is to bin into 'water year typologies'.
+  SR_HistHistoric <- read.csv("data/HistoricFlow/SacBendBridgeHist.csv")
+  AR_HistHistoric <- read.csv("data/HistoricFlow/AmericanRiverHist.csv")
+  FR_HistHistoric <- read.csv("data/HistoricFlow/FeatherRiverHist.csv")
+  MR_HistHistoric <- read.csv("data/HistoricFlow/MercedRiverHist.csv")
+  SJR_HistHistoric <- read.csv("data/HistoricFlow/SanJoaquinRiverHist.csv")
+  StR_HistHistoric <- read.csv("data/HistoricFlow/StanislausRiverHist.csv")
+  TR_HistHistoric <- read.csv("data/HistoricFlow/TuolumneRiverHist.csv")
+  YR_HistHistoric <- read.csv("data/HistoricFlow/YubaRiverHist.csv")
 
-# Adding all histograms together to make Eight-River Index in a single data frame.
-EightRivHist <- Hist1[,2:13]+Hist2[,2:13]+Hist3[,2:13]+Hist4[,2:13]+Hist5[,2:13]+Hist6[,2:13]+Hist7[,2:13]+ Hist8[,2:13]
-EightRivHist <- (EightRivHist* 0.0165643511)/1000
-EightRivHist$WaterYear <- Hist1$Water.Year
+# Add all histograms together to make Eight-River Index in a single data frame.
+  EightRivHistHistoric <- 
+    SR_Hist[,2:13]+
+    AR_Hist[,2:13]+
+    FR_Hist[,2:13]+
+    MR_Hist[,2:13]+
+    SJR_Hist[,2:13]+
+    StR_Hist[,2:13]+
+    TR_Hist[,2:13]+ 
+    YR_Hist[,2:13]
+# 0.0165643511/1000 used to calculate from thousand-acre feet to cubic feet per second units
+  EightRivHistHistoric <- (EightRivHistHistoric* 0.0165643511)/1000
+  EightRivHistHistoric$WaterYear <- HistHistoric$Water.Year
 
 # Calculate histogram. Used to calculate 'water year type'. 
 # Note: Water Year typology is relative; not equivalent to State of California definition.
-Hist.df <- data.frame(meanflow, maxflow, minflow, lowerQuart, upperQuart)
+HistHistoric.df <- data.frame(meanflow, maxflow, minflow, lowerQuart, upperQuart).
 
 # Load HadGEM2-ES climate model data.
-# Variable name should be changed to make clear what is Sacramento vs San Joaquin river basins.
-Sac1 <- fromJSON("data/RCP85/SacRiverBigBendHadGEM2ES.json")
-Sac2 <- fromJSON("data/RCP85/AmericanHadGEM2ES.json")
-Sac3 <- fromJSON("data/RCP85/FeatherHadGEM2ES.json")
-Sac4 <- fromJSON("data/RCP85/MercedHadGEM2ES.json")
-Sac5 <- fromJSON("data/RCP85/SJRHadGEM2ES.json")
-Sac6 <- fromJSON("data/RCP85/StanislausHadGEM2ES.json")
-Sac7 <- fromJSON("data/RCP85/TuolumneHadGEM2ES.json")
-Sac8 <- fromJSON("data/RCP85/YubaHadGEM2ES.json")
+# Sacramento River and tributaries
+  SR_HadGEM2 <- fromJSON("data/RCP85/SacRiverBigBendHadGEM2ES.json")
+  AR_HadGEM2 <- fromJSON("data/RCP85/AmericanHadGEM2ES.json")
+  FR_HadGEM2 <- fromJSON("data/RCP85/FeatherHadGEM2ES.json")
+  YR_HadGEM2 <- fromJSON("data/RCP85/YubaHadGEM2ES.json")
+# San Joaquin River and tributaries
+  SJR_HadGEM2 <- fromJSON("data/RCP85/SJRHadGEM2ES.json")
+  MR_HadGEM2 <- fromJSON("data/RCP85/MercedHadGEM2ES.json")
+  StR_HadGEM2 <- fromJSON("data/RCP85/StanislausHadGEM2ES.json")
+  TR_HadGEM2 <- fromJSON("data/RCP85/TuolumneHadGEM2ES.json")
+
+
+### =============================================
+# All above should be run as separate data script
+# Then, read in and pull in data to visualize
+### =============================================
 
 
 # Make ridge plot for HadEM2 data
-Sac1$measurement_set$EightRiver <- Sac1$measurement_set$value + Sac2$measurement_set$value +Sac3$measurement_set$value +Sac4$measurement_set$value +
-  Sac5$measurement_set$value + Sac6$measurement_set$value +Sac7$measurement_set$value +Sac8$measurement_set$value
+  EightRiv_HadGEM2$measurement_set$EightRiver <- 
+  SR_HadGEM2$measurement_set$value + 
+  AR_HadGEM2$measurement_set$value + 
+  FR_HadGEM2$measurement_set$value + 
+  YR_HadGEM2$measurement_set$value +
+  SJR_HadGEM2$measurement_set$value + 
+  MR_HadGEM2$measurement_set$value +
+  StR_HadGEM2$measurement_set$value +
+  TR_HadGEM2$measurement_set$value
 
-dates <- as.POSIXct(Sac1$measurement_set$event)
+# Pull in data by date, with water year starting on October 1 of each year
+# Currently months start with "4" because of input data issue
+# Input data should be updated, the this section can start with 10 and/or...
+# refer to correct water year when generating chart
+dates <- as.POSIXct(EightRiv_HadGEM2$measurement_set$event)
 months <- format(dates,"%m")
 months <- as.integer(months)
 months2 <- months
@@ -76,12 +101,14 @@ for (i in 1:1800) {
     
   }
 
-Sac1$measurement_set$WaterYear <- Year
-Sac1$measurement_set$Month <- months 
-sac1.df <- as.data.frame(Sac1$measurement_set)
+# Define year, months, and make dataframe
+EightRiv_HadGEM2$measurement_set$WaterYear <- Year
+EightRiv_HadGEM2$measurement_set$Month <- months 
+EightRiv_HadGEM2.df <- as.data.frame(EightRiv_HadGEM2$measurement_set)
 
-ClimateModelData <- sac1.df[790:1797,]
+ClimateModelData <- EightRiv_HadGEM2.df[790:1797,]
 
+# Reshape climate data to prepare for input to graph by water year and month
 climate.df <- reshape(ClimateModelData[,3:5], timevar = "Month", idvar = "WaterYear", direction = "wide")
 climate.df$WaterYear <- climate.df$WaterYear+2000
 names(climate.df)[2:13] <- names(EightRivHist)[1:12]
@@ -94,7 +121,7 @@ climate.df.merge[13] <- climate.df[1]
 names(climate.df.merge) <- names(EightRivHist)
 climate.df.merge[1:12] <- climate.df.merge[1:12]/1000
 
-AllData <- rbind(EightRivHist, climate.df.merge)
+AllData <- rbind(EightRivHistHistoric, climate.df.merge)
 alldata.melt <- melt(AllData, id="WaterYear")
 TotalWater <-c()
 
